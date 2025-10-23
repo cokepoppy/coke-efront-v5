@@ -1,0 +1,628 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User & Auth Models
+// ============================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String?   @map("first_name") @db.VarChar(100)
+  lastName     String?   @map("last_name") @db.VarChar(100)
+  phone        String?   @db.VarChar(50)
+  avatarUrl    String?   @map("avatar_url") @db.VarChar(500)
+  roleId       String?   @map("role_id")
+  status       UserStatus @default(active)
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  role         Role?     @relation(fields: [roleId], references: [id])
+  auditLogs    AuditLog[]
+  notifications Notification[]
+
+  @@index([email])
+  @@index([roleId])
+  @@index([status])
+  @@map("users")
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  permissions Json?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+
+  @@map("roles")
+}
+
+// ============================================
+// Fund Models
+// ============================================
+
+model Fund {
+  id                  String      @id @default(uuid())
+  name                String      @db.VarChar(255)
+  fundType            FundType    @map("fund_type")
+  totalSize           Decimal     @map("total_size") @db.Decimal(20, 2)
+  currency            String      @default("USD") @db.VarChar(3)
+  vintageYear         Int         @map("vintage_year")
+  inceptionDate       DateTime    @map("inception_date") @db.Date
+  fundTerm            Int?        @map("fund_term")
+  extensionPeriod     Int?        @map("extension_period")
+  status              FundStatus  @default(fundraising)
+  managerId           String?     @map("manager_id")
+  custodianBank       String?     @map("custodian_bank") @db.VarChar(255)
+  domicile            String?     @db.VarChar(100)
+  managementFeeRate   Decimal?    @map("management_fee_rate") @db.Decimal(5, 4)
+  performanceFeeRate  Decimal?    @map("performance_fee_rate") @db.Decimal(5, 4)
+  hurdleRate          Decimal?    @map("hurdle_rate") @db.Decimal(5, 4)
+  metadata            Json?
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+  deletedAt           DateTime?   @map("deleted_at")
+
+  investments         Investment[]
+  fundInvestors       FundInvestor[]
+  capitalCalls        CapitalCall[]
+  distributions       Distribution[]
+  transactions        Transaction[]
+  reports             Report[]
+  metrics             FundMetric[]
+
+  @@index([fundType])
+  @@index([status])
+  @@index([vintageYear])
+  @@map("funds")
+}
+
+enum FundType {
+  PE
+  VC
+  RE
+  Infrastructure
+  Debt
+}
+
+enum FundStatus {
+  fundraising
+  investing
+  harvesting
+  liquidated
+}
+
+model FundMetric {
+  id                String   @id @default(uuid())
+  fundId            String   @map("fund_id")
+  asOfDate          DateTime @map("as_of_date") @db.Date
+  nav               Decimal? @db.Decimal(20, 2)
+  irr               Decimal? @db.Decimal(8, 4)
+  moic              Decimal? @db.Decimal(8, 4)
+  dpi               Decimal? @db.Decimal(8, 4)
+  rvpi              Decimal? @db.Decimal(8, 4)
+  tvpi              Decimal? @db.Decimal(8, 4)
+  committedCapital  Decimal? @map("committed_capital") @db.Decimal(20, 2)
+  calledCapital     Decimal? @map("called_capital") @db.Decimal(20, 2)
+  distributedCapital Decimal? @map("distributed_capital") @db.Decimal(20, 2)
+  remainingValue    Decimal? @map("remaining_value") @db.Decimal(20, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  fund              Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@unique([fundId, asOfDate])
+  @@index([asOfDate])
+  @@map("fund_metrics")
+}
+
+// ============================================
+// Investment Models
+// ============================================
+
+model Investment {
+  id                  String            @id @default(uuid())
+  fundId              String            @map("fund_id")
+  companyName         String            @map("company_name") @db.VarChar(255)
+  industry            String?           @db.VarChar(100)
+  sector              String?           @db.VarChar(100)
+  region              String?           @db.VarChar(100)
+  country             String?           @db.VarChar(100)
+  investmentDate      DateTime          @map("investment_date") @db.Date
+  investmentStage     InvestmentStage   @map("investment_stage")
+  investmentType      InvestmentType    @map("investment_type")
+  initialInvestment   Decimal           @map("initial_investment") @db.Decimal(20, 2)
+  ownershipPercentage Decimal?          @map("ownership_percentage") @db.Decimal(5, 4)
+  currentValuation    Decimal?          @map("current_valuation") @db.Decimal(20, 2)
+  costBasis           Decimal?          @map("cost_basis") @db.Decimal(20, 2)
+  exitDate            DateTime?         @map("exit_date") @db.Date
+  exitType            ExitType?         @map("exit_type")
+  status              InvestmentStatus  @default(pipeline)
+  leadInvestorId      String?           @map("lead_investor_id")
+  description         String?           @db.Text
+  website             String?           @db.VarChar(500)
+  metadata            Json?
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  deletedAt           DateTime?         @map("deleted_at")
+
+  fund                Fund              @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  valuations          Valuation[]
+
+  @@index([fundId])
+  @@index([status])
+  @@index([industry])
+  @@index([investmentDate])
+  @@map("investments")
+}
+
+enum InvestmentStage {
+  seed
+  early
+  growth
+  late
+  buyout
+}
+
+enum InvestmentType {
+  equity
+  debt
+  convertible
+  preferred
+}
+
+enum ExitType {
+  IPO
+  MA
+  secondary
+  writeOff @map("write_off")
+}
+
+enum InvestmentStatus {
+  pipeline
+  dueDiligence @map("due_diligence")
+  approved
+  active
+  exited
+}
+
+model Valuation {
+  id              String          @id @default(uuid())
+  investmentId    String          @map("investment_id")
+  valuationDate   DateTime        @map("valuation_date") @db.Date
+  fairValue       Decimal         @map("fair_value") @db.Decimal(20, 2)
+  valuationMethod ValuationMethod @map("valuation_method")
+  multiple        Decimal?        @db.Decimal(8, 4)
+  notes           String?         @db.Text
+  audited         Boolean         @default(false)
+  createdBy       String?         @map("created_by")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  investment      Investment      @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+
+  @@index([investmentId])
+  @@index([valuationDate])
+  @@map("valuations")
+}
+
+enum ValuationMethod {
+  market
+  income
+  cost
+  transaction
+}
+
+// ============================================
+// Investor Models
+// ============================================
+
+model Investor {
+  id                 String        @id @default(uuid())
+  name               String        @db.VarChar(255)
+  investorType       InvestorType  @map("investor_type")
+  entityType         EntityType?   @map("entity_type")
+  domicile           String?       @db.VarChar(100)
+  country            String?       @db.VarChar(100)
+  taxId              String?       @map("tax_id") @db.VarChar(100)
+  email              String?       @db.VarChar(255)
+  phone              String?       @db.VarChar(50)
+  address            String?       @db.Text
+  kycStatus          KycStatus     @default(pending) @map("kyc_status")
+  kycDate            DateTime?     @map("kyc_date") @db.Date
+  amlStatus          KycStatus     @default(pending) @map("aml_status")
+  amlDate            DateTime?     @map("aml_date") @db.Date
+  accredited         Boolean       @default(false)
+  firstInvestmentDate DateTime?    @map("first_investment_date") @db.Date
+  status             InvestorStatus @default(active)
+  notes              String?       @db.Text
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  deletedAt          DateTime?     @map("deleted_at")
+
+  fundInvestors      FundInvestor[]
+  capitalCallDetails CapitalCallDetail[]
+  distributionDetails DistributionDetail[]
+
+  @@index([investorType])
+  @@index([status])
+  @@index([kycStatus])
+  @@map("investors")
+}
+
+enum InvestorType {
+  institutional
+  corporate
+  familyOffice @map("family_office")
+  hnwi
+  fundOfFunds @map("fund_of_funds")
+}
+
+enum EntityType {
+  individual
+  partnership
+  corporation
+  trust
+}
+
+enum KycStatus {
+  pending
+  inProgress @map("in_progress")
+  approved
+  rejected
+}
+
+enum InvestorStatus {
+  active
+  inactive
+}
+
+model FundInvestor {
+  id                  String         @id @default(uuid())
+  fundId              String         @map("fund_id")
+  investorId          String         @map("investor_id")
+  commitmentAmount    Decimal        @map("commitment_amount") @db.Decimal(20, 2)
+  commitmentDate      DateTime       @map("commitment_date") @db.Date
+  calledAmount        Decimal        @default(0) @map("called_amount") @db.Decimal(20, 2)
+  distributedAmount   Decimal        @default(0) @map("distributed_amount") @db.Decimal(20, 2)
+  currentNav          Decimal        @default(0) @map("current_nav") @db.Decimal(20, 2)
+  ownershipPercentage Decimal?       @map("ownership_percentage") @db.Decimal(5, 4)
+  investorClass       String?        @map("investor_class") @db.VarChar(50)
+  sideLetter          Boolean        @default(false) @map("side_letter")
+  status              FundInvestorStatus @default(committed)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  fund                Fund           @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  investor            Investor       @relation(fields: [investorId], references: [id], onDelete: Cascade)
+
+  @@unique([fundId, investorId])
+  @@map("fund_investors")
+}
+
+enum FundInvestorStatus {
+  committed
+  active
+  withdrawn
+}
+
+// ============================================
+// Capital Call & Distribution Models
+// ============================================
+
+model CapitalCall {
+  id              String            @id @default(uuid())
+  fundId          String            @map("fund_id")
+  callNumber      Int               @map("call_number")
+  callDate        DateTime          @map("call_date") @db.Date
+  dueDate         DateTime          @map("due_date") @db.Date
+  purpose         String?           @db.Text
+  totalAmount     Decimal           @map("total_amount") @db.Decimal(20, 2)
+  receivedAmount  Decimal           @default(0) @map("received_amount") @db.Decimal(20, 2)
+  status          CapitalCallStatus @default(draft)
+  bankAccount     String?           @map("bank_account") @db.VarChar(255)
+  notes           String?           @db.Text
+  createdBy       String?           @map("created_by")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  fund            Fund              @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  details         CapitalCallDetail[]
+
+  @@index([fundId])
+  @@index([status])
+  @@index([callDate])
+  @@map("capital_calls")
+}
+
+enum CapitalCallStatus {
+  draft
+  sent
+  partial
+  complete
+  overdue
+}
+
+model CapitalCallDetail {
+  id              String                @id @default(uuid())
+  capitalCallId   String                @map("capital_call_id")
+  investorId      String                @map("investor_id")
+  calledAmount    Decimal               @map("called_amount") @db.Decimal(20, 2)
+  receivedAmount  Decimal               @default(0) @map("received_amount") @db.Decimal(20, 2)
+  receivedDate    DateTime?             @map("received_date") @db.Date
+  status          CapitalCallDetailStatus @default(pending)
+  paymentReference String?              @map("payment_reference") @db.VarChar(255)
+  notes           String?               @db.Text
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  capitalCall     CapitalCall           @relation(fields: [capitalCallId], references: [id], onDelete: Cascade)
+  investor        Investor              @relation(fields: [investorId], references: [id], onDelete: Cascade)
+
+  @@index([capitalCallId])
+  @@index([investorId])
+  @@index([status])
+  @@map("capital_call_details")
+}
+
+enum CapitalCallDetailStatus {
+  pending
+  partial
+  paid
+  overdue
+}
+
+model Distribution {
+  id                String            @id @default(uuid())
+  fundId            String            @map("fund_id")
+  distributionNumber Int              @map("distribution_number")
+  distributionDate  DateTime          @map("distribution_date") @db.Date
+  paymentDate       DateTime          @map("payment_date") @db.Date
+  distributionType  DistributionType  @map("distribution_type")
+  totalAmount       Decimal           @map("total_amount") @db.Decimal(20, 2)
+  paidAmount        Decimal           @default(0) @map("paid_amount") @db.Decimal(20, 2)
+  status            DistributionStatus @default(draft)
+  notes             String?           @db.Text
+  createdBy         String?           @map("created_by")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  fund              Fund              @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  details           DistributionDetail[]
+
+  @@index([fundId])
+  @@index([status])
+  @@index([distributionDate])
+  @@map("distributions")
+}
+
+enum DistributionType {
+  income
+  capitalGain @map("capital_gain")
+  returnOfCapital @map("return_of_capital")
+}
+
+enum DistributionStatus {
+  draft
+  approved
+  processing
+  complete
+}
+
+model DistributionDetail {
+  id                  String                  @id @default(uuid())
+  distributionId      String                  @map("distribution_id")
+  investorId          String                  @map("investor_id")
+  distributionAmount  Decimal                 @map("distribution_amount") @db.Decimal(20, 2)
+  paidAmount          Decimal                 @default(0) @map("paid_amount") @db.Decimal(20, 2)
+  paymentDate         DateTime?               @map("payment_date") @db.Date
+  status              DistributionDetailStatus @default(pending)
+  paymentReference    String?                 @map("payment_reference") @db.VarChar(255)
+  withholdingTax      Decimal                 @default(0) @map("withholding_tax") @db.Decimal(20, 2)
+  netAmount           Decimal?                @map("net_amount") @db.Decimal(20, 2)
+  notes               String?                 @db.Text
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+
+  distribution        Distribution            @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  investor            Investor                @relation(fields: [investorId], references: [id], onDelete: Cascade)
+
+  @@index([distributionId])
+  @@index([investorId])
+  @@map("distribution_details")
+}
+
+enum DistributionDetailStatus {
+  pending
+  paid
+}
+
+// ============================================
+// Transaction Model
+// ============================================
+
+model Transaction {
+  id              String            @id @default(uuid())
+  fundId          String            @map("fund_id")
+  transactionDate DateTime          @map("transaction_date") @db.Date
+  transactionType TransactionType   @map("transaction_type")
+  amount          Decimal           @db.Decimal(20, 2)
+  currency        String            @default("USD") @db.VarChar(3)
+  description     String?           @db.Text
+  referenceId     String?           @map("reference_id")
+  referenceType   String?           @map("reference_type") @db.VarChar(50)
+  settlementDate  DateTime?         @map("settlement_date") @db.Date
+  status          TransactionStatus @default(pending)
+  createdBy       String?           @map("created_by")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  fund            Fund              @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+  @@index([transactionType])
+  @@index([transactionDate])
+  @@index([referenceType, referenceId])
+  @@map("transactions")
+}
+
+enum TransactionType {
+  capitalCall @map("capital_call")
+  distribution
+  investment
+  exit
+  fee
+  expense
+  income
+  other
+}
+
+enum TransactionStatus {
+  pending
+  settled
+  cancelled
+}
+
+// ============================================
+// Report & Document Models
+// ============================================
+
+model Report {
+  id          String       @id @default(uuid())
+  name        String       @db.VarChar(255)
+  reportType  ReportType   @map("report_type")
+  fundId      String?      @map("fund_id")
+  periodStart DateTime?    @map("period_start") @db.Date
+  periodEnd   DateTime?    @map("period_end") @db.Date
+  templateId  String?      @map("template_id")
+  status      ReportStatus @default(draft)
+  fileUrl     String?      @map("file_url") @db.VarChar(500)
+  fileSize    BigInt?      @map("file_size")
+  generatedAt DateTime?    @map("generated_at")
+  sentAt      DateTime?    @map("sent_at")
+  recipients  Json?
+  metadata    Json?
+  createdBy   String?      @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  fund        Fund?        @relation(fields: [fundId], references: [id], onDelete: SetNull)
+
+  @@index([fundId])
+  @@index([reportType])
+  @@index([status])
+  @@map("reports")
+}
+
+enum ReportType {
+  quarterly
+  annual
+  investor
+  compliance
+  custom
+}
+
+enum ReportStatus {
+  draft
+  generating
+  ready
+  sent
+  archived
+}
+
+model Document {
+  id                String    @id @default(uuid())
+  name              String    @db.VarChar(255)
+  documentType      String?   @map("document_type") @db.VarChar(100)
+  category          String?   @db.VarChar(100)
+  fileUrl           String    @map("file_url") @db.VarChar(500)
+  fileSize          BigInt?   @map("file_size")
+  mimeType          String?   @map("mime_type") @db.VarChar(100)
+  version           Int       @default(1)
+  parentId          String?   @map("parent_id")
+  relatedEntityType String?   @map("related_entity_type") @db.VarChar(50)
+  relatedEntityId   String?   @map("related_entity_id")
+  tags              Json?
+  isPublic          Boolean   @default(false) @map("is_public")
+  uploadedBy        String?   @map("uploaded_by")
+  uploadedAt        DateTime  @default(now()) @map("uploaded_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  @@index([documentType])
+  @@index([category])
+  @@index([relatedEntityType, relatedEntityId])
+  @@index([parentId])
+  @@map("documents")
+}
+
+// ============================================
+// Notification & Audit Models
+// ============================================
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String              @map("user_id")
+  type      String              @db.VarChar(50)
+  title     String              @db.VarChar(255)
+  message   String?             @db.Text
+  link      String?             @db.VarChar(500)
+  isRead    Boolean             @default(false) @map("is_read")
+  readAt    DateTime?           @map("read_at")
+  priority  NotificationPriority @default(medium)
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationPriority {
+  low
+  medium
+  high
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String?  @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
