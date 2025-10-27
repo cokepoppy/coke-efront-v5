@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { fetchFunds } from './fundsSlice';
+import { fetchFunds, createFund } from './fundsSlice';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -15,13 +15,82 @@ export default function FundsListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    fundType: "PE",
+    vintageYear: new Date().getFullYear(),
+    currency: "CNY",
+    totalSize: "",
+    fundTerm: "",
+    extensionPeriod: "",
+    inceptionDate: "",
+  });
 
   useEffect(() => {
     dispatch(fetchFunds({ page, pageSize, search, status: statusFilter, fundType: typeFilter }));
   }, [dispatch, page, pageSize, search, statusFilter, typeFilter]);
 
+  // 处理模态框打开时的 body 滚动锁定
+  useEffect(() => {
+    if (showModal) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showModal]);
+
   const handleCreateFund = () => {
-    navigate('/funds/create');
+    setFormData({
+      name: "",
+      fundType: "PE",
+      vintageYear: new Date().getFullYear(),
+      currency: "CNY",
+      totalSize: "",
+      fundTerm: "",
+      extensionPeriod: "",
+      inceptionDate: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const fundData = {
+        name: formData.name,
+        fundType: formData.fundType,
+        vintageYear: formData.vintageYear,
+        currency: formData.currency,
+        totalSize: parseFloat(formData.totalSize) * 1000000,
+        inceptionDate: new Date(formData.inceptionDate),
+        fundTerm: formData.fundTerm ? parseInt(formData.fundTerm) : undefined,
+        extensionPeriod: formData.extensionPeriod ? parseInt(formData.extensionPeriod) : undefined,
+      };
+
+      await dispatch(createFund(fundData)).unwrap();
+      toast.success("基金创建成功！");
+      setShowModal(false);
+      dispatch(fetchFunds({ page, pageSize }));
+    } catch (error: any) {
+      toast.error(error?.message || "创建失败，请重试");
+    }
   };
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -264,6 +333,179 @@ export default function FundsListPage() {
           </div>
         )}
       </div>
+
+      {/* 创建基金模态框 */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+        >
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-8 dark:bg-boxdark">
+            <h3 className="mb-6 text-2xl font-bold text-black dark:text-white">
+              创建基金
+            </h3>
+
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {/* 基金名称 */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    基金名称 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    required
+                    placeholder="请输入基金名称"
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  />
+                </div>
+
+                {/* 基金类型 */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    基金类型 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="fundType"
+                    value={formData.fundType}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  >
+                    <option value="PE">私募股权 (PE)</option>
+                    <option value="VC">风险投资 (VC)</option>
+                    <option value="RE">房地产 (RE)</option>
+                    <option value="Infrastructure">基础设施</option>
+                    <option value="Debt">债务基金</option>
+                  </select>
+                </div>
+
+                {/* 年份 */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    年份 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="vintageYear"
+                    value={formData.vintageYear}
+                    onChange={handleFormChange}
+                    required
+                    min="2000"
+                    max="2100"
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  />
+                </div>
+
+                {/* 货币 */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    货币 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="currency"
+                    value={formData.currency}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  >
+                    <option value="CNY">人民币 (CNY)</option>
+                    <option value="USD">美元 (USD)</option>
+                    <option value="EUR">欧元 (EUR)</option>
+                    <option value="GBP">英镑 (GBP)</option>
+                    <option value="HKD">港币 (HKD)</option>
+                  </select>
+                </div>
+
+                {/* 目标规模 */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    目标规模（百万） <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="totalSize"
+                    value={formData.totalSize}
+                    onChange={handleFormChange}
+                    required
+                    min="0"
+                    step="0.01"
+                    placeholder="请输入目标规模"
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  />
+                </div>
+
+                {/* 成立日期 */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    成立日期 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="inceptionDate"
+                    value={formData.inceptionDate}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  />
+                </div>
+
+                {/* 基金期限（月） */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    基金期限（月）
+                  </label>
+                  <input
+                    type="number"
+                    name="fundTerm"
+                    value={formData.fundTerm}
+                    onChange={handleFormChange}
+                    min="0"
+                    placeholder="例如: 120"
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  />
+                </div>
+
+                {/* 延期期限（月） */}
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    延期期限（月）
+                  </label>
+                  <input
+                    type="number"
+                    name="extensionPeriod"
+                    value={formData.extensionPeriod}
+                    onChange={handleFormChange}
+                    min="0"
+                    placeholder="例如: 24"
+                    className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* 按钮 */}
+              <div className="mt-6 flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="inline-flex items-center justify-center rounded-md border border-stroke px-10 py-3 text-center font-medium hover:bg-gray-50 dark:border-strokedark dark:hover:bg-meta-4"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-md bg-brand-500 px-10 py-3 text-center font-medium text-white hover:bg-brand-600"
+                >
+                  创建
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

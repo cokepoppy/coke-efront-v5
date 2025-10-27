@@ -4,7 +4,10 @@ import fundsReducer from '../features/funds/fundsSlice';
 import investmentsReducer from '../features/investments/investmentsSlice';
 import investorsReducer from '../features/investors/investorsSlice';
 import capitalCallsReducer from '../features/investors/capitalCallsSlice';
+import distributionsReducer from '../features/investors/distributionsSlice';
+import transactionsReducer from '../features/transactions/transactionsSlice';
 import valuationsReducer from '../features/valuations/valuationsSlice';
+import reportsReducer from '../features/reports/reportsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -13,7 +16,10 @@ export const store = configureStore({
     investments: investmentsReducer,
     investors: investorsReducer,
     capitalCalls: capitalCallsReducer,
+    distributions: distributionsReducer,
+    transactions: transactionsReducer,
     valuations: valuationsReducer,
+    reports: reportsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

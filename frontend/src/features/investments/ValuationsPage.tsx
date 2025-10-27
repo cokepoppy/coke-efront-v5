@@ -41,6 +41,29 @@ export default function ValuationsPage() {
     dispatch(fetchInvestments({ page: 1, limit: 100 }));
   }, [dispatch]);
 
+  // 处理模态框打开时的 body 滚动锁定
+  useEffect(() => {
+    if (showModal) {
+      // 保存当前滚动位置
+      const scrollY = window.scrollY;
+      // 锁定body滚动
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        // 恢复body滚动
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        // 恢复滚动位置
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showModal]);
+
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -442,7 +465,10 @@ export default function ValuationsPage() {
 
       {/* 创建/编辑模态框 */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+        >
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-8 dark:bg-boxdark">
             <h3 className="mb-6 text-2xl font-bold text-black dark:text-white">
               {editingValuation ? "编辑估值" : "新建估值"}

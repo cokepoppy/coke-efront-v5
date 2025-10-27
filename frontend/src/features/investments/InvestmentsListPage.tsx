@@ -1,18 +1,113 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { fetchInvestments } from "./investmentsSlice";
+import { fetchInvestments, createInvestment } from "./investmentsSlice";
+import { fetchFunds } from "../funds/fundsSlice";
 import { Link } from "react-router";
+import toast from "react-hot-toast";
 
 export default function InvestmentsListPage() {
   const dispatch = useAppDispatch();
   const { investments, loading, pagination } = useAppSelector((state) => state.investments);
+  const { funds } = useAppSelector((state) => state.funds);
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    fundId: "",
+    companyName: "",
+    industry: "",
+    sector: "",
+    region: "",
+    country: "",
+    investmentDate: "",
+    investmentStage: "seed",
+    investmentType: "equity",
+    initialInvestment: "",
+    ownershipPercentage: "",
+    description: "",
+    website: "",
+  });
 
   useEffect(() => {
     document.title = "投资列表 - eFront 私募基金管理系统";
     dispatch(fetchInvestments({ page: 1, limit: 10 }));
+    dispatch(fetchFunds({ page: 1, pageSize: 100 }));
   }, [dispatch]);
+
+  // 处理模态框打开时的 body 滚动锁定
+  useEffect(() => {
+    if (showModal) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showModal]);
+
+  const openCreateModal = () => {
+    setFormData({
+      fundId: "",
+      companyName: "",
+      industry: "",
+      sector: "",
+      region: "",
+      country: "",
+      investmentDate: "",
+      investmentStage: "seed",
+      investmentType: "equity",
+      initialInvestment: "",
+      ownershipPercentage: "",
+      description: "",
+      website: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const investmentData = {
+        fundId: formData.fundId,
+        companyName: formData.companyName,
+        industry: formData.industry || undefined,
+        sector: formData.sector || undefined,
+        region: formData.region || undefined,
+        country: formData.country || undefined,
+        investmentDate: new Date(formData.investmentDate),
+        investmentStage: formData.investmentStage as any,
+        investmentType: formData.investmentType as any,
+        initialInvestment: parseFloat(formData.initialInvestment) * 1000000,
+        ownershipPercentage: formData.ownershipPercentage
+          ? parseFloat(formData.ownershipPercentage) / 100
+          : undefined,
+        description: formData.description || undefined,
+        website: formData.website || undefined,
+        status: "active" as any,
+      };
+
+      await dispatch(createInvestment(investmentData)).unwrap();
+      toast.success("投资创建成功！");
+      setShowModal(false);
+      dispatch(fetchInvestments({ page: 1, limit: 10 }));
+    } catch (error: any) {
+      toast.error(error?.message || "创建失败，请重试");
+    }
+  };
 
   const handleSearch = () => {
     dispatch(fetchInvestments({ page: 1, limit: 10, search, stage }));
@@ -64,12 +159,12 @@ export default function InvestmentsListPage() {
             管理所有投资项目和投资组合
           </p>
         </div>
-        <Link
-          to="/investments/create"
+        <button
+          onClick={openCreateModal}
           className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-center font-medium text-white hover:bg-opacity-90"
         >
           + 新建投资
-        </Link>
+        </button>
       </div>
 
       {/* 搜索和筛选 */}
@@ -209,6 +304,268 @@ export default function InvestmentsListPage() {
           </div>
         )}
       </div>
+
+      {/* 创建投资模态框 */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+        >
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-8 dark:bg-boxdark">
+            <h3 className="mb-6 text-2xl font-bold text-black dark:text-white">
+              新建投资
+            </h3>
+
+            <form onSubmit={handleSubmit}>
+              {/* 基本信息 */}
+              <div className="mb-6">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">基本信息</h4>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* 所属基金 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      所属基金 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="fundId"
+                      value={formData.fundId}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    >
+                      <option value="">请选择基金</option>
+                      {funds.map((fund) => (
+                        <option key={fund.id} value={fund.id}>
+                          {fund.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 公司名称 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      公司名称 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={formData.companyName}
+                      onChange={handleFormChange}
+                      required
+                      placeholder="请输入公司名称"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 行业 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      行业
+                    </label>
+                    <input
+                      type="text"
+                      name="industry"
+                      value={formData.industry}
+                      onChange={handleFormChange}
+                      placeholder="例如：科技、医疗、消费"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 细分领域 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      细分领域
+                    </label>
+                    <input
+                      type="text"
+                      name="sector"
+                      value={formData.sector}
+                      onChange={handleFormChange}
+                      placeholder="例如：SaaS、生物制药"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 地区 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      地区
+                    </label>
+                    <input
+                      type="text"
+                      name="region"
+                      value={formData.region}
+                      onChange={handleFormChange}
+                      placeholder="例如：华东、华南"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 国家 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      国家
+                    </label>
+                    <input
+                      type="text"
+                      name="country"
+                      value={formData.country}
+                      onChange={handleFormChange}
+                      placeholder="例如：中国、美国"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 网站 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      公司网站
+                    </label>
+                    <input
+                      type="url"
+                      name="website"
+                      value={formData.website}
+                      onChange={handleFormChange}
+                      placeholder="https://example.com"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 投资信息 */}
+              <div className="mb-6">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">投资信息</h4>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* 投资日期 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      投资日期 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="investmentDate"
+                      value={formData.investmentDate}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 投资阶段 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      投资阶段 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="investmentStage"
+                      value={formData.investmentStage}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    >
+                      <option value="seed">种子轮</option>
+                      <option value="early">早期</option>
+                      <option value="growth">成长期</option>
+                      <option value="late">后期</option>
+                      <option value="buyout">并购</option>
+                    </select>
+                  </div>
+
+                  {/* 投资类型 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      投资类型 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="investmentType"
+                      value={formData.investmentType}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    >
+                      <option value="equity">股权</option>
+                      <option value="debt">债权</option>
+                      <option value="convertible">可转换债券</option>
+                      <option value="preferred">优先股</option>
+                    </select>
+                  </div>
+
+                  {/* 初始投资金额 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      初始投资金额 (百万元) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="initialInvestment"
+                      value={formData.initialInvestment}
+                      onChange={handleFormChange}
+                      required
+                      step="0.01"
+                      min="0"
+                      placeholder="例如：10.5"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+
+                  {/* 持股比例 */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      持股比例 (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="ownershipPercentage"
+                      value={formData.ownershipPercentage}
+                      onChange={handleFormChange}
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="例如：15.5"
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 项目描述 */}
+              <div className="mb-6">
+                <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                  描述
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleFormChange}
+                  rows={4}
+                  placeholder="请输入项目描述、投资逻辑等信息"
+                  className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                />
+              </div>
+
+              {/* 按钮 */}
+              <div className="mt-6 flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="inline-flex items-center justify-center rounded-md border border-stroke px-10 py-3 text-center font-medium hover:bg-gray-50 dark:border-strokedark dark:hover:bg-meta-4"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-md bg-brand-500 px-10 py-3 text-center font-medium text-white hover:bg-brand-600"
+                >
+                  创建
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
