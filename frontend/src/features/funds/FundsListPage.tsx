@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { fetchFunds, createFund } from './fundsSlice';
+import { fetchFunds, createFund, fetchFundById, clearCurrentFund } from './fundsSlice';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export default function FundsListPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { funds, total, page, pageSize, loading } = useAppSelector(
+  const { funds, currentFund, total, page, pageSize, loading } = useAppSelector(
     (state) => state.funds
   );
 
@@ -16,6 +16,7 @@ export default function FundsListPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     fundType: "PE",
@@ -33,7 +34,7 @@ export default function FundsListPage() {
 
   // 处理模态框打开时的 body 滚动锁定
   useEffect(() => {
-    if (showModal) {
+    if (showModal || showDetailModal) {
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -48,7 +49,7 @@ export default function FundsListPage() {
         window.scrollTo(0, scrollY);
       };
     }
-  }, [showModal]);
+  }, [showModal, showDetailModal]);
 
   const handleCreateFund = () => {
     setFormData({
@@ -91,6 +92,20 @@ export default function FundsListPage() {
     } catch (error: any) {
       toast.error(error?.message || "创建失败，请重试");
     }
+  };
+
+  const handleViewDetails = async (fundId: string) => {
+    try {
+      await dispatch(fetchFundById(fundId)).unwrap();
+      setShowDetailModal(true);
+    } catch (error: any) {
+      toast.error(error?.message || "获取基金详情失败");
+    }
+  };
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    dispatch(clearCurrentFund());
   };
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -251,7 +266,7 @@ export default function FundsListPage() {
                   >
                     <td className="px-4 py-4">
                       <button
-                        onClick={() => navigate(`/funds/${fund.id}`)}
+                        onClick={() => handleViewDetails(fund.id)}
                         className="text-left hover:text-primary"
                       >
                         <p className="font-medium text-black dark:text-white">
@@ -287,16 +302,10 @@ export default function FundsListPage() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => navigate(`/funds/${fund.id}`)}
+                          onClick={() => handleViewDetails(fund.id)}
                           className="text-primary hover:underline"
                         >
-                          View
-                        </button>
-                        <button
-                          onClick={() => navigate(`/funds/${fund.id}/edit`)}
-                          className="text-meta-5 hover:underline"
-                        >
-                          Edit
+                          查看详情
                         </button>
                       </div>
                     </td>
@@ -503,6 +512,201 @@ export default function FundsListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 基金详情模态框 */}
+      {showDetailModal && currentFund && (
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+        >
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-8 dark:bg-boxdark">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-black dark:text-white">
+                基金详情
+              </h3>
+              <button
+                onClick={handleCloseDetailModal}
+                className="text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* 基本信息 */}
+              <div className="rounded-lg border border-stroke p-6 dark:border-strokedark">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                  基本信息
+                </h4>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">基金名称</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {currentFund.name}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">基金类型</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {getFundTypeLabel(currentFund.fundType)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">成立日期</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {format(new Date(currentFund.inceptionDate), 'yyyy-MM-dd')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">年份</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {currentFund.vintageYear}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">状态</p>
+                    <div className="mt-1">
+                      {getStatusBadge(currentFund.status)}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">货币</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {currentFund.currency}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 规模信息 */}
+              <div className="rounded-lg border border-stroke p-6 dark:border-strokedark">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                  规模信息
+                </h4>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">目标规模</p>
+                    <p className="mt-1 text-xl font-bold text-black dark:text-white">
+                      {formatCurrency(currentFund.totalSize, currentFund.currency)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">已承诺</p>
+                    <p className="mt-1 text-xl font-bold text-success">
+                      {formatCurrency(currentFund.committed || 0, currentFund.currency)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">已实缴</p>
+                    <p className="mt-1 text-xl font-bold text-primary">
+                      {formatCurrency(currentFund.called || 0, currentFund.currency)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">已分配</p>
+                    <p className="mt-1 text-xl font-bold text-meta-5">
+                      {formatCurrency(currentFund.distributed || 0, currentFund.currency)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 期限信息 */}
+              <div className="rounded-lg border border-stroke p-6 dark:border-strokedark">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                  期限信息
+                </h4>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">基金期限</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {currentFund.fundTerm ? `${currentFund.fundTerm} 个月` : '未设置'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">延期期限</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {currentFund.extensionPeriod ? `${currentFund.extensionPeriod} 个月` : '未设置'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 统计信息 */}
+              <div className="rounded-lg border border-stroke p-6 dark:border-strokedark">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                  统计信息
+                </h4>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary">
+                      {currentFund._count?.investments || 0}
+                    </p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">投资项目</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-success">
+                      {currentFund._count?.fundInvestors || 0}
+                    </p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">投资者</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-meta-5">
+                      {currentFund._count?.capitalCalls || 0}
+                    </p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">催缴通知</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 描述信息 */}
+              {currentFund.description && (
+                <div className="rounded-lg border border-stroke p-6 dark:border-strokedark">
+                  <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                    基金描述
+                  </h4>
+                  <p className="text-gray-700 dark:text-gray-300">
+                    {currentFund.description}
+                  </p>
+                </div>
+              )}
+
+              {/* 时间戳 */}
+              <div className="rounded-lg border border-stroke p-6 dark:border-strokedark">
+                <h4 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                  时间戳
+                </h4>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">创建时间</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {format(new Date(currentFund.createdAt), 'yyyy-MM-dd HH:mm:ss')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">更新时间</p>
+                    <p className="mt-1 font-medium text-black dark:text-white">
+                      {format(new Date(currentFund.updatedAt), 'yyyy-MM-dd HH:mm:ss')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 关闭按钮 */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={handleCloseDetailModal}
+                className="inline-flex items-center justify-center rounded-md border border-stroke px-8 py-3 text-center font-medium hover:bg-gray-50 dark:border-strokedark dark:hover:bg-meta-4"
+              >
+                关闭
+              </button>
+            </div>
           </div>
         </div>
       )}
