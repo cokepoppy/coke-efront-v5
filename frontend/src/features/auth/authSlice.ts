@@ -58,6 +58,34 @@ export const getProfile = createAsyncThunk(
   }
 );
 
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (data: { name?: string; email?: string; phone?: string; avatar?: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/auth/profile', data);
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'Failed to update profile'
+      );
+    }
+  }
+);
+
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async (data: { currentPassword: string; newPassword: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/auth/change-password', data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'Failed to change password'
+      );
+    }
+  }
+);
+
 export const logout = createAsyncThunk('auth/logout', async () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -114,6 +142,31 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.accessToken = null;
         state.refreshToken = null;
+      })
+      // Update Profile
+      .addCase(updateProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Change Password
+      .addCase(changePassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(changePassword.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       })
       // Logout
       .addCase(logout.fulfilled, (state) => {
