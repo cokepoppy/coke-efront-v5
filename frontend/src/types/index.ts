@@ -170,3 +170,48 @@ export interface PaginationParams {
   sortOrder?: 'asc' | 'desc';
   search?: string;
 }
+
+// Document types
+export type DocumentType = 'contract' | 'report' | 'statement' | 'certificate' | 'presentation' | 'other';
+export type DocumentCategory = 'fund' | 'investment' | 'investor' | 'legal' | 'financial' | 'compliance' | 'other';
+export type RelatedEntityType = 'fund' | 'investment' | 'investor' | 'capitalCall' | 'distribution';
+
+export interface Document {
+  id: string;
+  name: string;
+  documentType?: DocumentType | string;
+  category?: DocumentCategory | string;
+  fileUrl: string;
+  fileSize?: number;
+  mimeType?: string;
+  version: number;
+  parentId?: string;
+  relatedEntityType?: RelatedEntityType | string;
+  relatedEntityId?: string;
+  tags?: any;
+  isPublic: boolean;
+  uploadedBy?: string;
+  uploadedAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface CreateDocumentData {
+  name: string;
+  documentType?: string;
+  category?: string;
+  fileUrl: string;
+  fileSize?: number;
+  mimeType?: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  tags?: any;
+  isPublic?: boolean;
+}
+
+export interface DocumentStats {
+  total: number;
+  byType: { documentType: string; _count: number }[];
+  byCategory: { category: string; _count: number }[];
+  recentUploads: Document[];
+}
