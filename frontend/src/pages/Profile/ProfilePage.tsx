@@ -28,8 +28,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     document.title = "个人中心 - eFront 私募基金管理系统";
-    dispatch(getProfile());
-  }, [dispatch]);
+  }, []);
 
   useEffect(() => {
     if (user) {

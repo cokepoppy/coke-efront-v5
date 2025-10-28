@@ -50,7 +50,8 @@ export default function App() {
     if (isAuthenticated) {
       dispatch(getProfile());
     }
-  }, [isAuthenticated, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   return (
     <Routes>
