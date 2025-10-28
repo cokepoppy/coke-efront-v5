@@ -393,7 +393,7 @@ export default function ValuationsPage() {
                     </td>
                     <td className="px-4 py-5">
                       {valuation.multiple
-                        ? `${valuation.multiple.toFixed(2)}x`
+                        ? `${Number(valuation.multiple).toFixed(2)}x`
                         : "-"}
                     </td>
                     <td className="px-4 py-5">
