@@ -57,8 +57,14 @@ export class DocumentsService {
       prisma.document.count({ where }),
     ]);
 
+    // Convert BigInt fileSize to Number for JSON serialization
+    const serializedDocuments = documents.map((doc) => ({
+      ...doc,
+      fileSize: doc.fileSize ? Number(doc.fileSize) : null,
+    }));
+
     return {
-      data: documents,
+      data: serializedDocuments,
       pagination: {
         page,
         pageSize,
@@ -77,7 +83,11 @@ export class DocumentsService {
       throw new AppError(404, 'DOCUMENT_NOT_FOUND', 'Document not found');
     }
 
-    return document;
+    // Convert BigInt fileSize to Number for JSON serialization
+    return {
+      ...document,
+      fileSize: document.fileSize ? Number(document.fileSize) : null,
+    };
   }
 
   async createDocument(data: {
@@ -109,7 +119,11 @@ export class DocumentsService {
       },
     });
 
-    return document;
+    // Convert BigInt fileSize to Number for JSON serialization
+    return {
+      ...document,
+      fileSize: document.fileSize ? Number(document.fileSize) : null,
+    };
   }
 
   async updateDocument(
@@ -129,7 +143,11 @@ export class DocumentsService {
       data,
     });
 
-    return document;
+    // Convert BigInt fileSize to Number for JSON serialization
+    return {
+      ...document,
+      fileSize: document.fileSize ? Number(document.fileSize) : null,
+    };
   }
 
   async deleteDocument(id: string) {
@@ -168,11 +186,17 @@ export class DocumentsService {
       }),
     ]);
 
+    // Convert BigInt fileSize to Number for JSON serialization
+    const serializedRecentUploads = recentUploads.map((doc) => ({
+      ...doc,
+      fileSize: doc.fileSize ? Number(doc.fileSize) : null,
+    }));
+
     return {
       total,
       byType,
       byCategory,
-      recentUploads,
+      recentUploads: serializedRecentUploads,
     };
   }
 }
