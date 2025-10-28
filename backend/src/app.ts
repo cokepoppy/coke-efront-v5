@@ -7,6 +7,7 @@ import { errorHandler, notFoundHandler } from './shared/middleware/error.middlew
 
 // Import routes
 import authRoutes from './modules/auth/auth.routes';
+import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import fundsRoutes from './modules/funds/funds.routes';
 import investmentsRoutes from './modules/investments/investments.routes';
 import investorsRoutes from './modules/investors/investors.routes';
@@ -41,6 +42,7 @@ app.get('/health', (req, res) => {
 const apiRouter = express.Router();
 
 apiRouter.use('/auth', authRoutes);
+apiRouter.use('/dashboard', dashboardRoutes);
 apiRouter.use('/funds', fundsRoutes);
 apiRouter.use('/investments', investmentsRoutes);
 apiRouter.use('/investors', investorsRoutes);

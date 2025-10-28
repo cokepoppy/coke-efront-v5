@@ -1,9 +1,99 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import api from "../../services/api";
+import toast from "react-hot-toast";
+
+interface Statistics {
+  fundsCount: number;
+  investmentsCount: number;
+  investorsCount: number;
+  totalAUM: number;
+}
+
+interface RecentFund {
+  id: string;
+  name: string;
+  fundType: string;
+  totalSize: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+}
+
+interface RecentInvestment {
+  id: string;
+  companyName: string;
+  initialInvestment: number;
+  investmentDate: string;
+  status: string;
+  fund: {
+    name: string;
+  };
+}
+
+interface UpcomingEvent {
+  id: string;
+  title: string;
+  startDate: string;
+  eventType: string;
+  location: string;
+}
+
+interface DashboardData {
+  statistics: Statistics;
+  recentFunds: RecentFund[];
+  recentInvestments: RecentInvestment[];
+  upcomingEvents: UpcomingEvent[];
+}
 
 export default function Home() {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DashboardData | null>(null);
+
   useEffect(() => {
     document.title = "仪表板 - eFront 私募基金管理系统";
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/dashboard/statistics");
+      setData(response.data.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || "加载仪表板数据失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number, currency: string = "USD") => {
+    const symbol = currency === "CNY" ? "¥" : "$";
+    if (amount >= 1000000000) {
+      return `${symbol}${(amount / 1000000000).toFixed(2)}B`;
+    } else if (amount >= 1000000) {
+      return `${symbol}${(amount / 1000000).toFixed(2)}M`;
+    } else if (amount >= 1000) {
+      return `${symbol}${(amount / 1000).toFixed(2)}K`;
+    }
+    return `${symbol}${amount.toFixed(2)}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6">
@@ -27,7 +117,7 @@ export default function Home() {
           <div className="mt-4 flex items-end justify-between">
             <div>
               <h4 className="text-title-md font-bold text-black dark:text-white">
-                0
+                {data?.statistics.fundsCount || 0}
               </h4>
               <span className="text-sm font-medium">管理基金数量</span>
             </div>
@@ -42,7 +132,7 @@ export default function Home() {
           <div className="mt-4 flex items-end justify-between">
             <div>
               <h4 className="text-title-md font-bold text-black dark:text-white">
-                0
+                {data?.statistics.investmentsCount || 0}
               </h4>
               <span className="text-sm font-medium">投资项目</span>
             </div>
@@ -57,7 +147,7 @@ export default function Home() {
           <div className="mt-4 flex items-end justify-between">
             <div>
               <h4 className="text-title-md font-bold text-black dark:text-white">
-                0
+                {data?.statistics.investorsCount || 0}
               </h4>
               <span className="text-sm font-medium">投资者</span>
             </div>
@@ -72,7 +162,7 @@ export default function Home() {
           <div className="mt-4 flex items-end justify-between">
             <div>
               <h4 className="text-title-md font-bold text-black dark:text-white">
-                $0
+                {formatCurrency(data?.statistics.totalAUM || 0)}
               </h4>
               <span className="text-sm font-medium">总资产规模</span>
             </div>
