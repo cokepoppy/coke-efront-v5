@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { updateProfile, changePassword, getProfile, clearError } from "../../features/auth/authSlice";
 import toast from "react-hot-toast";
@@ -7,10 +7,12 @@ import { format } from "date-fns";
 export default function ProfilePage() {
   const dispatch = useAppDispatch();
   const { user, loading, error } = useAppSelector((state) => state.auth);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'settings'>('profile');
   const [profileForm, setProfileForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
   });
@@ -21,6 +23,9 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
 
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   useEffect(() => {
     document.title = "个人中心 - eFront 私募基金管理系统";
     dispatch(getProfile());
@@ -29,7 +34,8 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setProfileForm({
-        name: user.name || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
         email: user.email || "",
         phone: user.phone || "",
       });
@@ -82,6 +88,54 @@ export default function ProfilePage() {
     }
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      toast.error("请选择图片文件");
+      return;
+    }
+
+    // 验证文件大小（限制为2MB）
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("图片大小不能超过2MB");
+      return;
+    }
+
+    // 创建预览
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarPreview) return;
+
+    setUploadingAvatar(true);
+    try {
+      // 在实际应用中，这里应该上传到服务器
+      // 现在我们直接更新到profile中
+      await dispatch(updateProfile({ avatarUrl: avatarPreview })).unwrap();
+      toast.success("头像更新成功");
+      setAvatarPreview(null);
+    } catch (error: any) {
+      toast.error(error?.message || "头像更新失败");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleAvatarCancel = () => {
+    setAvatarPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="p-4 md:p-6">
       <div className="mb-6">
@@ -97,22 +151,67 @@ export default function ProfilePage() {
       <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark mb-6">
         <div className="p-6">
           <div className="flex items-center gap-6">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-3xl font-bold">
-              {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+            <div className="relative group">
+              {user?.avatarUrl || avatarPreview ? (
+                <img
+                  src={avatarPreview || user?.avatarUrl}
+                  alt="User Avatar"
+                  className="h-24 w-24 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-3xl font-bold">
+                  {user?.firstName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center hover:bg-opacity-90 transition-all"
+                title="更换头像"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="text-2xl font-bold text-black dark:text-white mb-1">
-                {user?.name || 'User'}
+                {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.firstName || user?.email || 'User'}
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-2">
                 {user?.email}
               </p>
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                <span>角色: {user?.role || 'User'}</span>
+                <span>角色: {user?.role?.name || 'User'}</span>
                 {user?.createdAt && (
                   <span>加入时间: {format(new Date(user.createdAt), 'yyyy-MM-dd')}</span>
                 )}
               </div>
+              {avatarPreview && (
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleAvatarUpload}
+                    disabled={uploadingAvatar}
+                    className="px-4 py-1.5 bg-primary text-white text-sm rounded hover:bg-opacity-90 disabled:opacity-50"
+                  >
+                    {uploadingAvatar ? "上传中..." : "保存头像"}
+                  </button>
+                  <button
+                    onClick={handleAvatarCancel}
+                    disabled={uploadingAvatar}
+                    className="px-4 py-1.5 border border-stroke text-sm rounded hover:bg-gray-50 dark:hover:bg-meta-4 dark:border-strokedark disabled:opacity-50"
+                  >
+                    取消
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -142,6 +241,16 @@ export default function ProfilePage() {
             >
               修改密码
             </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`pb-4 px-2 font-medium transition-colors ${
+                activeTab === 'settings'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-primary'
+              }`}
+            >
+              偏好设置
+            </button>
           </div>
         </div>
       </div>
@@ -156,18 +265,32 @@ export default function ProfilePage() {
           </div>
           <div className="p-6.5">
             <form onSubmit={handleProfileSubmit}>
-              <div className="mb-6">
-                <label className="mb-2.5 block text-black dark:text-white">
-                  姓名 <span className="text-meta-1">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.name}
-                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                  required
-                  placeholder="请输入姓名"
-                  className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    名字 <span className="text-meta-1">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.firstName}
+                    onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
+                    required
+                    placeholder="请输入名字"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    姓氏
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.lastName}
+                    onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
+                    placeholder="请输入姓氏"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                  />
+                </div>
               </div>
 
               <div className="mb-6">
@@ -210,7 +333,8 @@ export default function ProfilePage() {
                   onClick={() => {
                     if (user) {
                       setProfileForm({
-                        name: user.name || "",
+                        firstName: user.firstName || "",
+                        lastName: user.lastName || "",
                         email: user.email || "",
                         phone: user.phone || "",
                       });
@@ -315,6 +439,139 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="space-y-6">
+          {/* Notification Settings */}
+          <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+            <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
+              <h3 className="font-medium text-black dark:text-white">
+                通知设置
+              </h3>
+            </div>
+            <div className="p-6.5">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-black dark:text-white mb-1">邮件通知</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">接收重要更新和通知的邮件</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-black dark:text-white mb-1">系统通知</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">显示系统级别的通知提醒</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-black dark:text-white mb-1">交易提醒</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">基金交易和分红相关的提醒</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Privacy Settings */}
+          <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+            <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
+              <h3 className="font-medium text-black dark:text-white">
+                隐私设置
+              </h3>
+            </div>
+            <div className="p-6.5">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-black dark:text-white mb-1">个人资料可见性</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">允许其他用户查看你的个人资料</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-black dark:text-white mb-1">活动跟踪</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">记录你的活动以提供更好的服务</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Display Settings */}
+          <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+            <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
+              <h3 className="font-medium text-black dark:text-white">
+                显示设置
+              </h3>
+            </div>
+            <div className="p-6.5">
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    语言
+                  </label>
+                  <select className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input">
+                    <option value="zh-CN">简体中文</option>
+                    <option value="zh-TW">繁體中文</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    时区
+                  </label>
+                  <select className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input">
+                    <option value="Asia/Shanghai">中国标准时间 (GMT+8)</option>
+                    <option value="Asia/Hong_Kong">香港时间 (GMT+8)</option>
+                    <option value="America/New_York">美东时间 (GMT-5)</option>
+                    <option value="Europe/London">伦敦时间 (GMT+0)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    日期格式
+                  </label>
+                  <select className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input">
+                    <option value="yyyy-MM-dd">YYYY-MM-DD</option>
+                    <option value="MM/dd/yyyy">MM/DD/YYYY</option>
+                    <option value="dd/MM/yyyy">DD/MM/YYYY</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-6">
+                <button
+                  type="button"
+                  className="flex justify-center rounded bg-primary p-3 px-8 font-medium text-gray hover:bg-opacity-90"
+                >
+                  保存设置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Account Info */}
       <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark mt-6">
         <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
@@ -330,12 +587,14 @@ export default function ProfilePage() {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">角色</p>
-              <p className="font-medium text-black dark:text-white">{user?.role || '-'}</p>
+              <p className="font-medium text-black dark:text-white">{user?.role?.name || '-'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">账户状态</p>
-              <span className="inline-flex rounded-full bg-success px-3 py-1 text-sm font-medium text-white">
-                活跃
+              <span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium text-white ${
+                user?.status === 'active' ? 'bg-success' : user?.status === 'inactive' ? 'bg-warning' : 'bg-danger'
+              }`}>
+                {user?.status === 'active' ? '活跃' : user?.status === 'inactive' ? '未激活' : '已暂停'}
               </span>
             </div>
             <div>

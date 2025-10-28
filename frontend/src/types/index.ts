@@ -31,8 +31,14 @@ export interface User {
   lastName?: string;
   phone?: string;
   avatarUrl?: string;
-  role?: string;
-  status: 'active' | 'inactive' | 'suspended';
+  role?: {
+    id: string;
+    name: string;
+    permissions: any;
+  };
+  status?: 'active' | 'inactive' | 'suspended';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginCredentials {

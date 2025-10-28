@@ -60,7 +60,7 @@ export const getProfile = createAsyncThunk(
 
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
-  async (data: { name?: string; email?: string; phone?: string; avatar?: string }, { rejectWithValue }) => {
+  async (data: { firstName?: string; lastName?: string; email?: string; phone?: string; avatarUrl?: string }, { rejectWithValue }) => {
     try {
       const response = await api.put('/auth/profile', data);
       return response.data.data;
@@ -76,7 +76,10 @@ export const changePassword = createAsyncThunk(
   'auth/changePassword',
   async (data: { currentPassword: string; newPassword: string }, { rejectWithValue }) => {
     try {
-      const response = await api.put('/auth/change-password', data);
+      const response = await api.put('/auth/change-password', {
+        oldPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
