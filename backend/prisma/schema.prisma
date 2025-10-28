@@ -32,6 +32,7 @@ model User {
   role         Role?     @relation(fields: [roleId], references: [id])
   auditLogs    AuditLog[]
   notifications Notification[]
+  events       Event[]
 
   @@index([email])
   @@index([roleId])
@@ -625,4 +626,47 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================
+// Event & Calendar Models
+// ============================================
+
+model Event {
+  id          String    @id @default(uuid())
+  title       String    @db.VarChar(255)
+  description String?   @db.Text
+  eventType   String?   @map("event_type") @db.VarChar(50)
+  category    String?   @db.VarChar(50)
+  startDate   DateTime  @map("start_date")
+  endDate     DateTime? @map("end_date")
+  location    String?   @db.VarChar(255)
+  isAllDay    Boolean   @default(false) @map("is_all_day")
+  color       String?   @db.VarChar(20)
+  reminder    Int?      // minutes before event
+  relatedEntityType String? @map("related_entity_type") @db.VarChar(50)
+  relatedEntityId   String? @map("related_entity_id")
+  attendees   Json?
+  status      EventStatus @default(scheduled)
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  creator     User?     @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([eventType])
+  @@index([category])
+  @@index([status])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("events")
+}
+
+enum EventStatus {
+  scheduled
+  in_progress
+  completed
+  cancelled
 }

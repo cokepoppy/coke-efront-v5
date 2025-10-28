@@ -215,3 +215,53 @@ export interface DocumentStats {
   byCategory: { category: string; _count: number }[];
   recentUploads: Document[];
 }
+
+// Event types
+export type EventType = 'meeting' | 'deadline' | 'milestone' | 'holiday' | 'reminder' | 'other';
+export type EventCategory = 'fund' | 'investment' | 'investor' | 'personal' | 'company' | 'other';
+export type EventStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface Event {
+  id: string;
+  title: string;
+  description?: string;
+  eventType?: EventType | string;
+  category?: EventCategory | string;
+  startDate: string;
+  endDate?: string;
+  location?: string;
+  isAllDay: boolean;
+  color?: string;
+  reminder?: number;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  attendees?: any;
+  status: EventStatus;
+  createdBy?: string;
+  creator?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface CreateEventData {
+  title: string;
+  description?: string;
+  eventType?: string;
+  category?: string;
+  startDate: string;
+  endDate?: string;
+  location?: string;
+  isAllDay?: boolean;
+  color?: string;
+  reminder?: number;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  attendees?: any;
+  status?: EventStatus;
+}

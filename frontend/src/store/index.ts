@@ -9,6 +9,7 @@ import transactionsReducer from '../features/transactions/transactionsSlice';
 import valuationsReducer from '../features/valuations/valuationsSlice';
 import reportsReducer from '../features/reports/reportsSlice';
 import documentsReducer from '../features/documents/documentsSlice';
+import eventsReducer from '../features/events/eventsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     valuations: valuationsReducer,
     reports: reportsReducer,
     documents: documentsReducer,
+    events: eventsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

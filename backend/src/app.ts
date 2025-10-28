@@ -13,6 +13,7 @@ import investorsRoutes from './modules/investors/investors.routes';
 import capitalCallsRoutes from './modules/capital/capital-calls.routes';
 import valuationsRoutes from './modules/investments/valuations.routes';
 import documentsRoutes from './modules/documents/documents.routes';
+import eventsRoutes from './modules/events/events.routes';
 
 const app = express();
 
@@ -46,6 +47,7 @@ apiRouter.use('/investors', investorsRoutes);
 apiRouter.use('/capital-calls', capitalCallsRoutes);
 apiRouter.use('/valuations', valuationsRoutes);
 apiRouter.use('/documents', documentsRoutes);
+apiRouter.use('/events', eventsRoutes);
 
 app.use(config.apiPrefix, apiRouter);
 
