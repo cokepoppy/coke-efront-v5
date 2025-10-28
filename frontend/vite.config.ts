@@ -20,10 +20,13 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     watch: {
-      usePolling: false,
+      usePolling: true, // 在 WSL 环境下必须启用 polling
+      interval: 100, // 检查文件变化的间隔（毫秒）
     },
     hmr: {
       overlay: true,
+      protocol: 'ws',
+      host: 'localhost',
     },
   },
   optimizeDeps: {
