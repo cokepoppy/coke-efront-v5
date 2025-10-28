@@ -1,4 +1,4 @@
-import { prisma } from '../../shared/utils/prisma.client';
+import prisma from '../../database/prisma';
 
 export class DashboardService {
   async getStatistics() {
