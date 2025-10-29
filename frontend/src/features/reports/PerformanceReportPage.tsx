@@ -68,11 +68,13 @@ export default function PerformanceReportPage() {
     }).format(amount);
   };
 
-  const formatPercent = (value: number) => {
+  const formatPercent = (value: number | undefined | null) => {
+    if (value === undefined || value === null || isNaN(value)) return '0.00%';
     return `${value.toFixed(2)}%`;
   };
 
-  const formatRatio = (value: number) => {
+  const formatRatio = (value: number | undefined | null) => {
+    if (value === undefined || value === null || isNaN(value)) return '0.00x';
     return `${value.toFixed(2)}x`;
   };
 
@@ -90,7 +92,8 @@ export default function PerformanceReportPage() {
     );
   };
 
-  const getPerformanceColor = (value: number) => {
+  const getPerformanceColor = (value: number | undefined | null) => {
+    if (value === undefined || value === null || isNaN(value)) return 'text-gray-600';
     if (value > 0) return 'text-success';
     if (value < 0) return 'text-danger';
     return 'text-gray-600';

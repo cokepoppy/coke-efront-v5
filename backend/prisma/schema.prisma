@@ -93,6 +93,7 @@ model Fund {
   transactions        Transaction[]
   reports             Report[]
   metrics             FundMetric[]
+  investorReports     InvestorReport[]
 
   @@index([fundType])
   @@index([status])
@@ -264,6 +265,7 @@ model Investor {
   fundInvestors      FundInvestor[]
   capitalCallDetails CapitalCallDetail[]
   distributionDetails DistributionDetail[]
+  investorReports    InvestorReport[]
 
   @@index([investorType])
   @@index([status])
@@ -549,6 +551,45 @@ enum ReportStatus {
   ready
   sent
   archived
+}
+
+model InvestorReport {
+  id             String                @id @default(uuid())
+  investorId     String                @map("investor_id")
+  fundId         String                @map("fund_id")
+  reportType     InvestorReportType    @map("report_type")
+  year           Int
+  quarter        Int?
+  reportDate     DateTime              @map("report_date") @db.Date
+  status         InvestorReportStatus  @default(draft)
+  generatedAt    DateTime?             @map("generated_at")
+  sentAt         DateTime?             @map("sent_at")
+  reportUrl      String?               @map("report_url") @db.VarChar(500)
+  notes          String?               @db.Text
+  createdBy      String?               @map("created_by")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  investor       Investor              @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  fund           Fund                  @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([investorId])
+  @@index([fundId])
+  @@index([reportType])
+  @@index([year])
+  @@index([status])
+  @@map("investor_reports")
+}
+
+enum InvestorReportType {
+  quarterly
+  annual
+}
+
+enum InvestorReportStatus {
+  draft
+  generated
+  sent
 }
 
 model Document {

@@ -69,6 +69,7 @@ async function main() {
 
   // 清空现有业务数据（保留用户和角色）
   console.log('Cleaning existing business data...');
+  await prisma.investorReport.deleteMany({});
   await prisma.event.deleteMany({});
   await prisma.document.deleteMany({});
   await prisma.valuation.deleteMany({});
@@ -580,6 +581,87 @@ async function main() {
   }
   console.log(`✅ Created ${eventCount} events`);
 
+  // 创建投资者报告
+  console.log('Creating investor reports...');
+  let investorReportCount = 0;
+
+  // 为每个基金的每个投资者创建报告
+  for (const fund of funds) {
+    const fundInvestorRelations = await prisma.fundInvestor.findMany({
+      where: { fundId: fund.id },
+      select: { investorId: true },
+    });
+
+    for (const relation of fundInvestorRelations) {
+      // 创建2023年的季度报告
+      for (let quarter = 1; quarter <= 4; quarter++) {
+        const status = quarter < 3 ? 'sent' : quarter === 3 ? 'generated' : 'draft';
+        const reportDate = new Date(2023, (quarter - 1) * 3, 1);
+
+        await prisma.investorReport.create({
+          data: {
+            investorId: relation.investorId,
+            fundId: fund.id,
+            reportType: 'quarterly',
+            year: 2023,
+            quarter: quarter,
+            reportDate: reportDate,
+            status: status,
+            generatedAt: status !== 'draft' ? new Date(2023, (quarter - 1) * 3 + 2, 15) : null,
+            sentAt: status === 'sent' ? new Date(2023, (quarter - 1) * 3 + 2, 20) : null,
+            reportUrl: status !== 'draft' ? `/reports/investor-report-2023-Q${quarter}-${fund.id}.pdf` : null,
+            notes: status === 'draft' ? '待生成报告' : `${2023}年第${quarter}季度投资者报告`,
+            createdBy: adminUser.id,
+          },
+        });
+        investorReportCount++;
+      }
+
+      // 创建2023年年度报告
+      await prisma.investorReport.create({
+        data: {
+          investorId: relation.investorId,
+          fundId: fund.id,
+          reportType: 'annual',
+          year: 2023,
+          reportDate: new Date(2023, 11, 31),
+          status: 'sent',
+          generatedAt: new Date(2024, 0, 15),
+          sentAt: new Date(2024, 0, 20),
+          reportUrl: `/reports/investor-report-2023-annual-${fund.id}.pdf`,
+          notes: '2023年度投资者报告',
+          createdBy: adminUser.id,
+        },
+      });
+      investorReportCount++;
+
+      // 创建2024年的部分季度报告
+      for (let quarter = 1; quarter <= 2; quarter++) {
+        const status = quarter === 1 ? 'sent' : 'generated';
+        const reportDate = new Date(2024, (quarter - 1) * 3, 1);
+
+        await prisma.investorReport.create({
+          data: {
+            investorId: relation.investorId,
+            fundId: fund.id,
+            reportType: 'quarterly',
+            year: 2024,
+            quarter: quarter,
+            reportDate: reportDate,
+            status: status,
+            generatedAt: new Date(2024, (quarter - 1) * 3 + 2, 15),
+            sentAt: status === 'sent' ? new Date(2024, (quarter - 1) * 3 + 2, 20) : null,
+            reportUrl: `/reports/investor-report-2024-Q${quarter}-${fund.id}.pdf`,
+            notes: `${2024}年第${quarter}季度投资者报告`,
+            createdBy: adminUser.id,
+          },
+        });
+        investorReportCount++;
+      }
+    }
+  }
+  console.log(`✅ Created ${investorReportCount} investor reports`);
+
   console.log('');
   console.log('🎉 Database seeding completed successfully!');
   console.log('');
@@ -594,6 +676,7 @@ async function main() {
   console.log(`- ${distributionCount} distributions with ${distributionDetailCount} details`);
   console.log(`- ${documentCount} documents`);
   console.log(`- ${eventCount} events`);
+  console.log(`- ${investorReportCount} investor reports`);
   console.log('');
   console.log('📧 Admin user:', adminUser.email);
   console.log('🔑 Password: admin123');

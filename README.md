@@ -12,6 +12,38 @@ A comprehensive, modern web-based system for managing private equity funds, inve
 - **User Authentication**: Secure JWT-based authentication with role-based access control
 - **Dashboard**: Interactive dashboards with data visualization
 
+## Screenshots
+
+### 首页
+![首页](doc/images/首页.png)
+
+### 基金列表
+![基金列表](doc/images/基金列表.png)
+
+### 投资列表
+![投资列表](doc/images/投资列表.png)
+
+### 投资者管理
+![投资者管理](doc/images/投资者管理.png)
+
+### 估算管理
+![估算管理](doc/images/估算管理.png)
+
+### 交易管理
+![交易管理](doc/images/交易管理.png)
+
+### 绩效报告
+![绩效报告](doc/images/绩效报告.png)
+
+### 文档管理
+![文档管理](doc/images/文档管理.png)
+
+### 日历
+![日历](doc/images/日历.png)
+
+### 个人中心
+![个人中心](doc/images/个人中心.png)
+
 ## Tech Stack
 
 ### Frontend

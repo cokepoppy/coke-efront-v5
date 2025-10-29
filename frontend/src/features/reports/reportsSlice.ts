@@ -147,7 +147,7 @@ export const fetchFundPerformances = createAsyncThunk(
     endDate?: string;
   }) => {
     const response = await api.get('/reports/fund-performance', { params });
-    return response.data;
+    return response.data.data || [];
   }
 );
 
@@ -155,7 +155,7 @@ export const fetchFundPerformanceById = createAsyncThunk(
   'reports/fetchFundPerformanceById',
   async (fundId: string) => {
     const response = await api.get(`/reports/fund-performance/${fundId}`);
-    return response.data;
+    return response.data.data;
   }
 );
 
@@ -169,7 +169,7 @@ export const fetchInvestmentPerformances = createAsyncThunk(
     endDate?: string;
   }) => {
     const response = await api.get('/reports/investment-performance', { params });
-    return response.data;
+    return response.data.data || [];
   }
 );
 
@@ -177,7 +177,7 @@ export const fetchInvestmentPerformanceById = createAsyncThunk(
   'reports/fetchInvestmentPerformanceById',
   async (investmentId: string) => {
     const response = await api.get(`/reports/investment-performance/${investmentId}`);
-    return response.data;
+    return response.data.data;
   }
 );
 
@@ -189,7 +189,7 @@ export const fetchPerformanceSummary = createAsyncThunk(
     endDate?: string;
   }) => {
     const response = await api.get('/reports/performance-summary', { params });
-    return response.data;
+    return response.data.data;
   }
 );
 
