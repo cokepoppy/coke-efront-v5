@@ -203,7 +203,7 @@ export class ReportsService {
     const investor = await prisma.investor.findUnique({
       where: { id: investorId },
       include: {
-        commitments: {
+        fundInvestors: {
           where: {
             deletedAt: null,
             ...(fundId ? { fundId } : {}),
@@ -216,19 +216,30 @@ export class ReportsService {
                 currency: true,
               },
             },
-            capitalCalls: {
+            capitalCallDetails: {
               where: {
                 deletedAt: null,
-                ...(startDate && endDate
-                  ? {
-                      callDate: {
-                        gte: new Date(startDate),
-                        lte: new Date(endDate),
-                      },
-                    }
-                  : {}),
               },
-              orderBy: { callDate: 'desc' },
+              include: {
+                capitalCall: {
+                  where: {
+                    deletedAt: null,
+                    ...(startDate && endDate
+                      ? {
+                          callDate: {
+                            gte: new Date(startDate),
+                            lte: new Date(endDate),
+                          },
+                        }
+                      : {}),
+                  },
+                },
+              },
+              orderBy: {
+                capitalCall: {
+                  callDate: 'desc',
+                },
+              },
             },
             distributionDetails: {
               where: {
@@ -259,32 +270,31 @@ export class ReportsService {
       throw new AppError(404, 'INVESTOR_NOT_FOUND', 'Investor not found');
     }
 
-    const commitments = investor.commitments.map((commitment) => {
-      const totalCommitment = Number(commitment.commitmentAmount);
-      const totalCalled = commitment.capitalCalls.reduce(
-        (sum, call) => sum + Number(call.callAmount),
-        0
-      );
-      const totalDistributed = commitment.distributionDetails.reduce(
-        (sum, detail) => sum + Number(detail.amount),
-        0
-      );
+    const commitments = investor.fundInvestors.map((fundInvestor) => {
+      const totalCommitment = Number(fundInvestor.commitmentAmount);
+      const totalCalled = Number(fundInvestor.calledAmount);
+      const totalDistributed = Number(fundInvestor.distributedAmount);
       const unfundedCommitment = totalCommitment - totalCalled;
 
       return {
-        id: commitment.id,
-        fund: commitment.fund,
+        id: fundInvestor.id,
+        fund: fundInvestor.fund,
         commitmentAmount: totalCommitment,
         calledAmount: totalCalled,
         distributedAmount: totalDistributed,
         unfundedCommitment,
-        commitmentDate: commitment.commitmentDate,
-        capitalCalls: commitment.capitalCalls.map((call) => ({
-          ...call,
-          callAmount: Number(call.callAmount),
-          paidAmount: Number(call.paidAmount),
-        })),
-        distributions: commitment.distributionDetails
+        commitmentDate: fundInvestor.commitmentDate,
+        capitalCalls: fundInvestor.capitalCallDetails
+          .filter((detail) => detail.capitalCall)
+          .map((detail) => ({
+            id: detail.id,
+            capitalCallId: detail.capitalCallId,
+            callDate: detail.capitalCall.callDate,
+            callAmount: Number(detail.amount),
+            paidAmount: Number(detail.amount),
+            status: detail.capitalCall.status,
+          })),
+        distributions: fundInvestor.distributionDetails
           .filter((detail) => detail.distribution)
           .map((detail) => ({
             id: detail.id,
